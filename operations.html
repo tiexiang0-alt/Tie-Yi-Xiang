@@ -303,6 +303,117 @@
         </footer>
 
     </main>
+
+    <!-- 6. OPERATIONS MEMOS (Dynamic) -->
+    <section class="glass-sheet" style="margin: 20px 24px 60px;">
+        <h2 style="margin-bottom: 20px;">
+            <div class="section-marker" style="background:#007AFF; color:#fff;">📝</div>
+            声场执行备忘
+        </h2>
+        <div class="sheet-content">
+            <!-- Add New -->
+            <div style="display:flex; gap:10px; margin-bottom:20px;">
+                <input type="text" id="op-memo-input" placeholder="输入执行细节 (如: 李师傅喊的声音太小...)"
+                    style="flex:1; padding:12px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); background:rgba(255,255,255,0.5);">
+                <button onclick="addOpMemo()"
+                    style="padding:12px 20px; background:var(--system-blue); color:#fff; border:none; border-radius:12px; font-weight:600; cursor:pointer;">
+                    + 记录
+                </button>
+            </div>
+
+            <!-- List -->
+            <div id="op-memo-list" style="display:grid; gap:10px;">
+                <div style="text-align:center; color:#999; padding:20px;">加载中...</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- LeanCloud SDK & Logic -->
+    <script src="https://unpkg.com/leancloud-storage@4.12.0/dist/av-min.js"></script>
+    <script>
+        // CONFIG
+        const CLOUD_CONFIG = {
+            appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
+            appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
+            serverURLs: "https://ru4pzaoo.api.lncdglobal.com"
+        };
+        AV.init(CLOUD_CONFIG);
+
+        document.addEventListener('DOMContentLoaded', () => {
+            loadOpMemos();
+        });
+
+        async function loadOpMemos() {
+            const container = document.getElementById('op-memo-list');
+            try {
+                const query = new AV.Query('OperationsMemo');
+                query.descending('createdAt');
+                const results = await query.find();
+
+                container.innerHTML = '';
+                if (results.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘，记一条吧~</div>';
+                    return;
+                }
+
+                results.forEach(memo => {
+                    const div = document.createElement('div');
+                    div.className = 'verbatim-box';
+                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin:0; background:rgba(255,255,255,0.6);';
+                    div.innerHTML = `
+                        <span style="font-size:14px; color:#333;">${memo.get('content')}</span>
+                        <button onclick="deleteOpMemo('${memo.id}')" style="background:none; border:none; color:#ccc; font-size:12px; padding:5px; cursor:pointer;">🗑️</button>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (e) {
+                if (e.code === 101) {
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘，记一条吧~</div>';
+                } else {
+                    console.error(e);
+                    container.innerHTML = '<div style="color:red; text-align:center;">加载失败</div>';
+                }
+            }
+        }
+
+        async function addOpMemo() {
+            const input = document.getElementById('op-memo-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.disabled = true;
+            try {
+                const Memo = AV.Object.extend('OperationsMemo');
+                const memo = new Memo();
+                memo.set('content', text);
+
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true);
+                memo.setACL(acl);
+
+                await memo.save();
+                input.value = '';
+                loadOpMemos();
+            } catch (e) {
+                alert("保存失败: " + e.message);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function deleteOpMemo(id) {
+            if (!confirm("确认删除？")) return;
+            try {
+                const memo = AV.Object.createWithoutData('OperationsMemo', id);
+                await memo.destroy();
+                loadOpMemos();
+            } catch (e) {
+                alert("删除失败");
+            }
+        }
+    </script>
     <script src="script.js"></script>
 </body>
 
