@@ -73,7 +73,7 @@
                 <div style="display:flex; align-items:center;">
                     <div class="card-icon" style="margin-bottom:0; margin-right: 20px; font-size:32px;">🖥️</div>
                     <div class="card-text">
-                        <h3 style="margin-bottom:4px; font-size: 18px;">战时中控大屏</h3>
+                        <h3 style="margin-bottom:4px; font-size: 18px;">中控大屏</h3>
                         <p style="color:var(--text-secondary); font-size: 13px;">实时数据监控中心</p>
                     </div>
                 </div>
@@ -92,7 +92,7 @@
         </div>
 
         <!-- Budget / Investment Outlook -->
-        <section class="glass-sheet delay-6" style="margin-bottom: 40px; padding: 25px;">
+        <section class="glass-sheet delay-6" style="margin-bottom: 20px; padding: 25px;">
             <h3
                 style="font-size: 16px; font-weight: 700; margin-bottom: 20px; display:flex; align-items:center; justify-content:space-between;">
                 <span>💰 营销弹药库 (首月预算)</span>
@@ -161,7 +161,45 @@
             </div>
         </section>
 
+        <!-- 6. HOME MEMOS (Dynamic) -->
+        <section class="glass-sheet" style="margin-bottom: 40px;">
+            <h2 style="margin-bottom: 20px;">
+                <div class="section-marker" style="background:#5856D6; color:#fff;">📝</div>
+                总指挥备忘
+            </h2>
+            <div class="sheet-content">
+                <!-- Add New -->
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <input type="text" id="home-memo-input" placeholder="输入灵感 (如: 明天记得约摄影师...)"
+                        style="flex:1; padding:12px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); background:rgba(255,255,255,0.5);">
 
+                    <!-- Voice Button -->
+                    <button id="home-mic-btn" onclick="toggleHomeRecording()"
+                        style="width:44px; padding:0; background:rgba(0,0,0,0.05); color:#333; border:none; border-radius:12px; font-size:20px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:all 0.3s;">
+                        🎙️
+                    </button>
+
+                    <button id="home-add-btn" onclick="addHomeMemo()"
+                        style="padding:12px 20px; background:var(--system-blue); color:#fff; border:none; border-radius:12px; font-weight:600; cursor:pointer;">
+                        + 记录
+                    </button>
+                </div>
+
+                <!-- Recording Status -->
+                <div id="home-recording-status"
+                    style="display:none; align-items:center; gap:10px; margin-bottom:15px; padding:10px; background:rgba(255,59,48,0.1); border-radius:8px; color:#FF3B30;">
+                    <div
+                        style="width:10px; height:10px; background:#FF3B30; border-radius:50%; animation: pulse 1s infinite;">
+                    </div>
+                    <span style="font-size:12px; font-weight:600;">正在录音... (再次点击麦克风结束并发送)</span>
+                </div>
+
+                <!-- List -->
+                <div id="home-memo-list" style="display:grid; gap:10px;">
+                    <div style="text-align:center; color:#999; padding:20px;">加载中...</div>
+                </div>
+            </div>
+        </section>
 
         <div class="bottom-countdown glass-panel">
             <div class="label">距离决战结束仅剩</div>
@@ -176,6 +214,223 @@
 
     <script src="//code.bdstatic.com/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <script src="script.js"></script>
+    <script>
+        // CONFIG
+        const CLOUD_CONFIG_HOME = {
+            appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
+            appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
+            serverURLs: "https://ru4pzaoo.api.lncldglobal.com"
+        };
+        // Global Record Variables
+        let homeMediaRecorder;
+        let homeAudioChunks = [];
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // 1. Polling for AV init (Wait max 5s)
+            let attempts = 0;
+            const initInterval = setInterval(() => {
+                attempts++;
+                if (typeof AV !== 'undefined') {
+                    if (!AV.applicationId) AV.init(CLOUD_CONFIG_HOME);
+                    clearInterval(initInterval);
+                    loadHomeMemosWithRetry(3);
+                } else if (attempts > 50) {
+                    clearInterval(initInterval);
+                    document.getElementById('home-memo-list').innerHTML = '<div style="color:red; text-align:center;">SDK Load Timeout</div>';
+                }
+            }, 100);
+        });
+
+        // --- RECORDING LOGIC ---
+        async function toggleHomeRecording() {
+            const btn = document.getElementById('home-mic-btn');
+            const status = document.getElementById('home-recording-status');
+            const input = document.getElementById('home-memo-input');
+            const addBtn = document.getElementById('home-add-btn');
+
+            if (!homeMediaRecorder || homeMediaRecorder.state === 'inactive') {
+                // START RECORDING
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    homeMediaRecorder = new MediaRecorder(stream);
+                    homeAudioChunks = [];
+
+                    homeMediaRecorder.ondataavailable = event => {
+                        homeAudioChunks.push(event.data);
+                    };
+
+                    homeMediaRecorder.onstop = async () => {
+                        const audioBlob = new Blob(homeAudioChunks, { type: 'audio/webm' });
+                        await uploadHomeVoiceMemo(audioBlob);
+                    };
+
+                    homeMediaRecorder.start();
+
+                    // UI Update
+                    btn.style.background = '#FF3B30';
+                    btn.style.color = '#fff';
+                    btn.innerHTML = '⏹';
+                    status.style.display = 'flex';
+                    input.disabled = true;
+                    addBtn.disabled = true;
+
+                } catch (e) {
+                    alert('无法访问麦克风: ' + e.message);
+                }
+            } else {
+                // STOP RECORDING
+                homeMediaRecorder.stop();
+
+                // UI Reset
+                btn.style.background = 'rgba(0,0,0,0.05)';
+                btn.style.color = '#333';
+                btn.innerHTML = '🎙️';
+                status.style.display = 'none';
+                input.disabled = false;
+                addBtn.disabled = false;
+
+                // Show loading
+                const container = document.getElementById('home-memo-list');
+                const loadingDiv = document.createElement('div');
+                loadingDiv.id = 'home-voice-uploading';
+                loadingDiv.innerHTML = '<div style="text-align:center; padding:10px; color:#999;">🎙️ 正在上传语音...</div>';
+                container.prepend(loadingDiv);
+            }
+        }
+
+        async function uploadHomeVoiceMemo(blob) {
+            try {
+                // 1. Upload File
+                const file = new AV.File('home_voice_memo.webm', blob);
+                const savedFile = await file.save();
+
+                // 2. Create Memo Object
+                const Memo = AV.Object.extend('HomeMemo');
+                const memo = new Memo();
+                memo.set('content', '[语音备忘]');
+                memo.set('audio', savedFile.url()); // Store URL
+                memo.set('isVoice', true);
+
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true);
+                memo.setACL(acl);
+
+                await memo.save();
+
+                // 3. Remove Loading & Refresh
+                const loadingDiv = document.getElementById('home-voice-uploading');
+                if (loadingDiv) loadingDiv.remove();
+                loadHomeMemosWithRetry(3);
+
+            } catch (e) {
+                alert("语音上传失败: " + e.message);
+                const loadingDiv = document.getElementById('home-voice-uploading');
+                if (loadingDiv) loadingDiv.remove();
+            }
+        }
+
+        async function loadHomeMemosWithRetry(retries) {
+            const container = document.getElementById('home-memo-list');
+            if (retries === 3) container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">正在连接云端...</div>';
+
+            try {
+                const query = new AV.Query('HomeMemo');
+                query.descending('createdAt');
+                const results = await Promise.race([
+                    query.find(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Query Timeout')), 5000))
+                ]);
+
+                container.innerHTML = '';
+                if (results.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘，记一条吧~</div>';
+                    return;
+                }
+
+                results.forEach(memo => {
+                    const div = document.createElement('div');
+                    div.className = 'verbatim-box';
+                    div.style.cssText = 'display:flex; flex-direction:column; gap:8px; margin-bottom:8px; background:rgba(255,255,255,0.6); padding:12px;';
+
+                    const content = memo.get('content');
+                    const audioUrl = memo.get('audio');
+                    const date = memo.createdAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+                    let html = `<div style="display:flex; justify-content:space-between; width:100%;">
+                        <span style="font-size:14px; color:#333;">${content} <span style="font-size:10px; color:#999; margin-left:5px;">${date}</span></span>
+                        <button onclick="deleteHomeMemo('${memo.id}')" style="background:none; border:none; color:#ccc; font-size:12px; padding:5px; cursor:pointer;">🗑️</button>
+                    </div>`;
+
+                    if (audioUrl) {
+                        html += `<audio controls src="${audioUrl}" style="width:100%; height:32px; margin-top:5px;"></audio>`;
+                    }
+
+                    div.innerHTML = html;
+                    container.appendChild(div);
+                });
+            } catch (e) {
+                console.warn(`Load Attempt Failed (Left: ${retries})`, e);
+                if (retries > 0) {
+                    container.innerHTML = `<div style="text-align:center; color:#ff9500; padding:20px; font-size:12px;">连接不稳定，正在重试 (${3 - retries + 1}/3)...</div>`;
+                    setTimeout(() => loadHomeMemosWithRetry(retries - 1), 1500);
+                } else {
+                    renderErrorHome(e, container);
+                }
+            }
+        }
+
+        function renderErrorHome(e, container) {
+            if (e.code === 101) {
+                container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘 (Class Not Found)</div>';
+            } else if ((e.code === 0 && e.message.includes("Network")) || e.message === 'Query Timeout') {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                    ⚠️ 网络不稳定<br>
+                    请检查是否有VPN影响，或刷新重试。
+                 </div>`;
+            } else {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px;">Error ${e.code || 'X'}: ${e.message}</div>`;
+            }
+        }
+
+        async function addHomeMemo() {
+            const input = document.getElementById('home-memo-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.disabled = true;
+            try {
+                const Memo = AV.Object.extend('HomeMemo');
+                const memo = new Memo();
+                memo.set('content', text);
+
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true);
+                memo.setACL(acl);
+
+                await memo.save();
+                input.value = '';
+                loadHomeMemosWithRetry(3);
+            } catch (e) {
+                alert("保存失败: " + e.message);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function deleteHomeMemo(id) {
+            if (!confirm("确认删除？")) return;
+            try {
+                const memo = AV.Object.createWithoutData('HomeMemo', id);
+                await memo.destroy();
+                loadHomeMemosWithRetry(3);
+            } catch (e) {
+                alert("删除失败");
+            }
+        }
+    </script>
 </body>
 
 </html>
