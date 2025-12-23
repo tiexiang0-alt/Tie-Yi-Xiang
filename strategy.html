@@ -164,20 +164,23 @@
     <!-- LeanCloud SDK & Logic -->
     <script src="https://unpkg.com/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <script>
-        // CONFIG
-        const CONFIG = {
-            appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
-            appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
-            serverURLs: "https://ru4pzaoo.api.lncdglobal.com"
-        };
-        AV.init(CONFIG);
+        // CONFIG (Safe Init)
+        const APP_ID = "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI";
+        const APP_KEY = "KJF0dXD0lmOMn1PJDb3fMUN5";
+        const SERVER_URL = "https://ru4pzaoo.api.lncldglobal.com";
+
+        if (typeof AV !== 'undefined' && !AV.applicationId) {
+            AV.init({ appId: APP_ID, appKey: APP_KEY, serverURLs: SERVER_URL });
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadMemos();
+            // Wait a sec for script.js to potentially init too
+            setTimeout(loadMemos, 500);
         });
 
         async function loadMemos() {
             const container = document.getElementById('memo-list');
+            container.innerHTML = 'Scan...';
             try {
                 const query = new AV.Query('StrategyMemo');
                 query.descending('createdAt');
@@ -191,8 +194,8 @@
 
                 results.forEach(memo => {
                     const div = document.createElement('div');
-                    div.className = 'verbatim-box'; // Reuse existing style
-                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin:0; background:rgba(255,255,255,0.6);';
+                    div.className = 'verbatim-box';
+                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:rgba(255,255,255,0.6);';
                     div.innerHTML = `
                         <span style="font-size:14px; color:#333;">${memo.get('content')}</span>
                         <button onclick="deleteMemo('${memo.id}')" style="background:none; border:none; color:#ccc; font-size:12px; padding:5px; cursor:pointer;">🗑️</button>
@@ -200,12 +203,18 @@
                     container.appendChild(div);
                 });
             } catch (e) {
+                console.error(e);
                 if (e.code === 101) {
-                    // Class not found yet, that's fine
-                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘，随手记一条吧~</div>';
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘 (Class Not Found)</div>';
+                } else if (e.code === 0 && e.message.includes("Network")) {
+                    // CORS or Network
+                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                        ⚠️ 网络不可用或被拦截 (Error 0)<br>
+                        请检查 LeanCloud 控制台 > 设置 > 安全中心 > Web 安全域名。<br>
+                        需添加: <strong>tiexiang0-alt.github.io</strong>
+                     </div>`;
                 } else {
-                    console.error(e);
-                    container.innerHTML = '<div style="color:red; text-align:center;">加载失败，请检查网络</div>';
+                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px;">Error ${e.code}: ${e.message}</div>`;
                 }
             }
         }

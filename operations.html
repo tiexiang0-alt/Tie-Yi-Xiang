@@ -331,16 +331,20 @@
     <!-- LeanCloud SDK & Logic -->
     <script src="https://unpkg.com/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <script>
-        // CONFIG
+        // CONFIG (Safe Init)
         const CLOUD_CONFIG = {
             appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
             appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
-            serverURLs: "https://ru4pzaoo.api.lncdglobal.com"
+            serverURLs: "https://ru4pzaoo.api.lncldglobal.com"
         };
-        AV.init(CLOUD_CONFIG);
+        // Avoid Duplicate Init
+        if (typeof AV !== 'undefined' && !AV.applicationId) {
+            AV.init(CLOUD_CONFIG);
+        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            loadOpMemos();
+            // Wait for script.js
+            setTimeout(loadOpMemos, 500);
         });
 
         async function loadOpMemos() {
@@ -359,7 +363,7 @@
                 results.forEach(memo => {
                     const div = document.createElement('div');
                     div.className = 'verbatim-box';
-                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin:0; background:rgba(255,255,255,0.6);';
+                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:rgba(255,255,255,0.6);';
                     div.innerHTML = `
                         <span style="font-size:14px; color:#333;">${memo.get('content')}</span>
                         <button onclick="deleteOpMemo('${memo.id}')" style="background:none; border:none; color:#ccc; font-size:12px; padding:5px; cursor:pointer;">🗑️</button>
@@ -367,11 +371,18 @@
                     container.appendChild(div);
                 });
             } catch (e) {
+                console.error(e);
                 if (e.code === 101) {
-                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘，记一条吧~</div>';
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘 (Class Not Found)</div>';
+                } else if (e.code === 0 && e.message.includes("Network")) {
+                    // CORS or Network
+                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                        ⚠️ 网络不可用或被拦截 (Error 0)<br>
+                        请检查 LeanCloud 控制台 > 设置 > 安全中心 > Web 安全域名。<br>
+                        需添加: <strong>tiexiang0-alt.github.io</strong>
+                     </div>`;
                 } else {
-                    console.error(e);
-                    container.innerHTML = '<div style="color:red; text-align:center;">加载失败</div>';
+                    container.innerHTML = '<div style="color:red; text-align:center;">Load Error: ' + e.code + '</div>';
                 }
             }
         }
