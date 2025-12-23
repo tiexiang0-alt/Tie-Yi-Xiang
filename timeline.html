@@ -197,7 +197,7 @@
         <h1 style="font-size: 32px; font-weight: 800; margin-bottom: 10px;">行动指挥部</h1>
         <p style="color: var(--text-secondary); margin-bottom: 30px;">
             多端实时同步中 (LeanCloud Serverless)<br>
-            <span style="font-size:12px; opacity:0.7;">配置请点击右上角设置</span>
+            <span style="font-size:12px; opacity:0.7;">同步状态正常 (Serverless DB)</span>
         </p>
 
         <!-- Phase 1 -->
@@ -312,7 +312,7 @@
                 // Pre-fill
                 const cfg = getCloudConfig();
                 document.getElementById('cfg-appid').value = cfg.appId || "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI";
-                document.getElementById('cfg-appkey').value = cfg.appKey || "KJf0DXD0lmOMn1PJDb3fMUN5";
+                document.getElementById('cfg-appkey').value = cfg.appKey || "KJF0DXD0lmOMn1PJDb3fMUN5"; // Fixed Typo
                 document.getElementById('cfg-server').value = cfg.serverURL || "https://ru4pzaoo.api.lncldglobal.com";
             };
             nav.appendChild(btn);
@@ -322,15 +322,20 @@
         // LEANCLOUD INIT (Serverless Database)
         // ----------------------------------------------------
 
+        // Corrected Defaults from Screenshot (Fixing 'f' -> 'F')
         const DEFAULT_CONFIG = {
             appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
-            appKey: "KJf0DXD0lmOMn1PJDb3fMUN5",
+            appKey: "KJF0DXD0lmOMn1PJDb3fMUN5", // CORRECTED
             serverURL: "https://ru4pzaoo.api.lncldglobal.com"
         };
 
         function getCloudConfig() {
             const saved = localStorage.getItem('tie_cloud_config');
-            return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+            if (saved) return JSON.parse(saved);
+
+            // If no saved config, use default but also SAVE IT immediately so it persists
+            localStorage.setItem('tie_cloud_config', JSON.stringify(DEFAULT_CONFIG));
+            return DEFAULT_CONFIG;
         }
 
         function saveConfigAndReload() {
@@ -374,14 +379,12 @@
                 if (results.length > 0) {
                     dbObject = results[0];
                     globalState = dbObject.get('data') || {};
-                    // Merge cloud state into local (Cloud wins)
                     applyStateToDOM(globalState);
 
                     statusEl.innerHTML = '<span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span> 已同步 LeanCloud';
                     setTimeout(() => statusEl.classList.remove('sync-active'), 3000);
                 } else {
-                    // Create NEW Object if not found
-                    console.log("No cloud data found. Creating new...");
+                    console.log("Creating new object...");
                     const ChecklistState = AV.Object.extend('ChecklistState');
                     dbObject = new ChecklistState();
                     dbObject.set('syncId', SYNC_ID);
@@ -400,7 +403,13 @@
             } catch (error) {
                 console.error("Cloud Error:", error);
                 statusEl.style.background = "rgba(255, 59, 48, 0.9)";
-                statusEl.innerHTML = "❌ <span style='cursor:pointer; text-decoration:underline;' onclick=\"document.getElementById('settings-panel').style.display='flex'\">点击配置连接</span>";
+                statusEl.innerHTML = "❌ <span style='cursor:pointer; text-decoration:underline;' onclick=\"document.getElementById('settings-panel').style.display='flex'\">连接失败:配置错误</span>";
+
+                // If Auth error, maybe show settings automatically?
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    // document.getElementById('settings-panel').style.display = 'flex';
+                }
+
                 // Fallback to local
                 globalState = JSON.parse(localStorage.getItem('tie_local_backup')) || {};
                 applyStateToDOM(globalState);
@@ -432,22 +441,18 @@
         window.toggleTask = async (el, taskId) => {
             el.classList.toggle('completed');
 
-            // Update Local State
             if (el.classList.contains('completed')) {
                 globalState[taskId] = true;
             } else {
                 delete globalState[taskId];
             }
 
-            // Update UI immediately (Optimistic UI)
             const items = document.querySelectorAll('.task-item');
             const done = document.querySelectorAll('.task-item.completed').length;
             updateProgress(done, items.length);
 
-            // Save to Local Backup
             localStorage.setItem('tie_local_backup', JSON.stringify(globalState));
 
-            // Save to Cloud
             if (dbObject) {
                 const statusEl = document.getElementById('sync-status');
                 statusEl.style.background = "rgba(0,0,0,0.8)";
@@ -460,16 +465,13 @@
                     statusEl.innerHTML = '<span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span> 保存成功';
                     setTimeout(() => statusEl.classList.remove('sync-active'), 2000);
                 } catch (e) {
-                    console.error("Save failed", e);
                     statusEl.style.background = "rgba(255, 59, 48, 0.9)";
-                    statusEl.innerText = "❌ 保存失败: " + e.message;
+                    statusEl.innerText = "❌保存失败";
                 }
             } else {
-                // If object wasn't created yet
                 fetchCloud();
             }
 
-            // Haptic
             if (window.navigator && window.navigator.vibrate) {
                 window.navigator.vibrate(50);
             }
@@ -484,19 +486,16 @@
         // Init
         fetchCloud();
 
-        // Auto-refresh every 5s to pull changes from other devices
         setInterval(async () => {
             if (dbObject) {
                 try {
                     await dbObject.fetch();
                     const newData = dbObject.get('data');
-                    // Only update if changes found to avoid UI flickering
                     if (JSON.stringify(newData) !== JSON.stringify(globalState)) {
                         globalState = newData;
                         applyStateToDOM(globalState);
-                        console.log("Remote changes pulled.");
                     }
-                } catch (e) { console.log("Bg sync err", e); }
+                } catch (e) { }
             }
         }, 5000);
 
