@@ -354,6 +354,26 @@
             今日执行打分
         </h2>
         <div class="sheet-content">
+            <!-- Rubric Reference -->
+            <div
+                style="margin-bottom:20px; padding:15px; background:rgba(255,255,255,0.6); border-radius:12px; font-size:12px;">
+                <strong style="display:block; margin-bottom:10px; color:#333;">📏 评分标准 (Rubric)</strong>
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:8px;">
+                    <div style="color:#d1d1d6;">
+                        <span style="color:#FF3B30; font-weight:700;">&lt;60 (哑火)</span><br>没人喊/仅稀疏回应
+                    </div>
+                    <div style="color:#8E8E93;">
+                        <span style="color:#FF9500; font-weight:700;">60-79 (参差)</span><br>喊了但不齐/有杂音
+                    </div>
+                    <div style="color:#636366;">
+                        <span style="color:#34C759; font-weight:700;">80-89 (整齐)</span><br>全员开口/盖过噪音
+                    </div>
+                    <div style="color:#1c1c1e;">
+                        <span style="color:#AF52DE; font-weight:700;">90+ (震撼)</span><br>军队级/客人吓一跳
+                    </div>
+                </div>
+            </div>
+
             <div style="display:flex; align-items:center; gap:15px; margin-bottom:15px;">
                 <input type="number" id="op-score-val" placeholder="0-100" min="0" max="100"
                     style="width:80px; padding:12px; font-size:20px; font-weight:700; text-align:center; border-radius:12px; border:1px solid rgba(0,0,0,0.1);">
@@ -380,6 +400,20 @@
             目标达成清单
         </h2>
         <div class="sheet-content">
+
+            <!-- Reference Goals -->
+            <div
+                style="margin-bottom:20px; padding:15px; border-left:3px solid #AF52DE; background:rgba(175, 82, 222, 0.05); border-radius:0 12px 12px 0;">
+                <strong style="font-size:13px; color:#AF52DE; display:block; margin-bottom:5px;">💡 建议目标
+                    (点击这里复制):</strong>
+                <div onclick="document.getElementById('op-goal-input').value = this.innerText"
+                    style="font-size:12px; color:#555; margin-bottom:4px; cursor:pointer;">1. 午高峰全员开口率100% (拒绝哑巴)</div>
+                <div onclick="document.getElementById('op-goal-input').value = this.innerText"
+                    style="font-size:12px; color:#555; margin-bottom:4px; cursor:pointer;">2. 响应零延迟 (听到“招呼”1秒内接上)</div>
+                <div onclick="document.getElementById('op-goal-input').value = this.innerText"
+                    style="font-size:12px; color:#555; cursor:pointer;">3. 声音完全盖过店内交谈背景音</div>
+            </div>
+
             <!-- Add Goal -->
             <div style="display:flex; gap:10px; margin-bottom:20px;">
                 <input type="text" id="op-goal-input" placeholder="输入必须要达成的目标..."
