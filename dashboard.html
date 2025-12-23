@@ -79,11 +79,27 @@
             position: relative;
             overflow: hidden;
             transition: transform 0.3s ease;
+            cursor: pointer;
+            /* Clickable */
         }
 
         .dash-card:hover {
             transform: scale(1.01);
             border-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .edit-hint {
+            position: absolute;
+            bottom: 10px;
+            right: 15px;
+            font-size: 10px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .dash-card:hover .edit-hint {
+            opacity: 1;
         }
 
         .dash-label {
@@ -128,6 +144,12 @@
             align-items: center;
             justify-content: center;
             text-align: center;
+            cursor: default;
+            /* Not clickable */
+        }
+
+        .main-stage:hover {
+            transform: none;
         }
 
         /* Apple Watch Activity / Find My Style Radar */
@@ -221,7 +243,7 @@
 <body class="dashboard-mode">
     <div class="dashboard-mesh"></div>
 
-    <!-- Nav Island (Reused but slightly tweaked for dark) -->
+    <!-- Nav Island -->
     <div class="nav-island" style="top: 20px;">
         <div class="island-content" style="background: rgba(28, 28, 30, 0.8);">
             <a href="index.html"
@@ -259,33 +281,70 @@
         </div>
 
         <!-- Metric 1: Traffic -->
-        <div class="dash-card">
+        <div class="dash-card" onclick="updateMetric('traffic')">
             <div class="dash-label">
                 <span>今日客流态势</span>
                 <span style="font-size:18px;">👥</span>
             </div>
-            <div class="dash-value">850</div>
+            <div class="dash-value" id="val-traffic">850</div>
             <div style="margin-top: 10px;">
-                <span class="trend-badge">▲ 15% 环比增长</span>
+                <span class="trend-badge">▲ <span id="trend-traffic">15%</span> 环比增长</span>
             </div>
+            <div class="edit-hint">点击修改数据</div>
         </div>
 
         <!-- Metric 2: Voice -->
-        <div class="dash-card">
+        <div class="dash-card" onclick="updateMetric('voice')">
             <div class="dash-label">
                 <span>声场触发次数</span>
                 <span style="font-size:18px;">📢</span>
             </div>
-            <div class="dash-value" style="color: var(--system-indigo);">128</div>
+            <div class="dash-value" style="color: var(--system-indigo);" id="val-voice">128</div>
             <div style="font-size:12px; color:rgba(255,255,255,0.4); margin-top:10px;">
                 全店喊堂响应频次
             </div>
+            <div class="edit-hint">点击修改数据</div>
         </div>
 
     </main>
 
     <script src="script.js"></script>
     <script>
+        // 1. Data Persistence Logic
+        const DATA_KEY = 'tieyixiang_dashboard_data';
+        let dashData = JSON.parse(localStorage.getItem(DATA_KEY)) || {
+            traffic: 850,
+            trafficTrend: '15%',
+            voice: 128
+        };
+
+        // Initialize view
+        function renderData() {
+            document.getElementById('val-traffic').innerText = dashData.traffic;
+            document.getElementById('trend-traffic').innerText = dashData.trafficTrend;
+            document.getElementById('val-voice').innerText = dashData.voice;
+        }
+        renderData();
+
+        // 2. Click to Edit Logic
+        window.updateMetric = (type) => {
+            if (type === 'traffic') {
+                const newVal = prompt("【手动录入】请输入美团实时客流数据:", dashData.traffic);
+                if (newVal && !isNaN(newVal)) {
+                    dashData.traffic = newVal;
+                    localStorage.setItem(DATA_KEY, JSON.stringify(dashData));
+                    renderData();
+                }
+            } else if (type === 'voice') {
+                const newVal = prompt("【手动录入】请输入今日喊堂次数:", dashData.voice);
+                if (newVal && !isNaN(newVal)) {
+                    dashData.voice = newVal;
+                    localStorage.setItem(DATA_KEY, JSON.stringify(dashData));
+                    renderData();
+                }
+            }
+        };
+
         // Dashboard specific precise timer
         function updateDashboardTimer() {
             const daysEl = document.getElementById('dash-days');
