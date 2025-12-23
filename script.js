@@ -1,29 +1,67 @@
-document.addEventListener('DOMContentLoaded', () => {
-    // 1. Countdown Logic
-    // 1. Countdown Logic (Persistent)
-    const timerElement = document.getElementById('countdown-timer');
-    const STORAGE_KEY = 'tieyixiang_start_time';
+document.addEventListener('DOMContentLoaded', async () => {
+    // --- SHARED CLOUD CONFIG (Mirrored from timeline.html) ---
+    const APP_ID = "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI";
+    const APP_KEY = "KJF0dXD0lmOMn1PJDb3fMUN5";
+    const SERVER_URL = "https://ru4pzaoo.api.lncldglobal.com";
 
-    // Get stored start time or set to now if new
-    let startTime = localStorage.getItem(STORAGE_KEY);
-    if (!startTime) {
-        startTime = new Date().getTime();
-        localStorage.setItem(STORAGE_KEY, startTime);
-    } else {
-        startTime = parseInt(startTime);
+    // Init LeanCloud
+    if (typeof AV !== 'undefined') {
+        AV.init({ appId: APP_ID, appKey: APP_KEY, serverURLs: SERVER_URL });
     }
 
-    // Deadline is fixed 20 days from the FIRST time the user opened the site
-    const deadline = new Date(startTime + (20 * 24 * 60 * 60 * 1000));
+    // --- COUNTDOWN LOGIC ---
+    const timerElement = document.getElementById('countdown-timer');
+    let deadline = null;
 
-    // Expose for dashboard
-    window.getDiff = () => {
-        return deadline - new Date();
-    };
+    async function getSharedDeadline() {
+        try {
+            const query = new AV.Query('TieYixiangGlobalSettings');
+            const results = await query.find();
+
+            if (results.length > 0) {
+                // Found existing deadline
+                const settings = results[0];
+                const savedStart = settings.get('campaignStartTime');
+                // Deadline = Start Time + 20 Days
+                return new Date(savedStart.getTime() + (20 * 24 * 60 * 60 * 1000));
+            } else {
+                // First Run: Initialize "Today 12:00 PM"
+                console.log("Initializing Global Deadline...");
+                const SettingsClass = AV.Object.extend('TieYixiangGlobalSettings');
+                const settings = new SettingsClass();
+
+                // Set to Today 12:00:00
+                const now = new Date();
+                now.setHours(12, 0, 0, 0);
+
+                settings.set('campaignStartTime', now);
+
+                // Set ACL
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true); // Allow adjustments if needed
+                settings.setACL(acl);
+
+                await settings.save();
+                return new Date(now.getTime() + (20 * 24 * 60 * 60 * 1000));
+            }
+        } catch (e) {
+            console.error("Countdown Sync Error", e);
+            // Fallback to local 20 days if cloud fails
+            const fallbackStart = new Date();
+            fallbackStart.setHours(12, 0, 0, 0);
+            return new Date(fallbackStart.getTime() + (20 * 24 * 60 * 60 * 1000));
+        }
+    }
 
     if (timerElement) {
+        timerElement.innerText = "⏳ 同步中...";
+        deadline = await getSharedDeadline();
+
         function updateTimer() {
-            const diff = window.getDiff();
+            if (!deadline) return;
+            const now = new Date();
+            const diff = deadline - now;
 
             if (diff <= 0) {
                 timerElement.textContent = "行动结束";
