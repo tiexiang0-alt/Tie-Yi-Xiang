@@ -130,8 +130,9 @@
             gap: 5px;
             opacity: 0;
             transition: opacity 0.5s;
-            pointer-events: none;
-            z-index: 2000;
+            pointer-events: auto;
+            cursor: pointer;
+            z-index: 9999;
         }
 
         .sync-active {
@@ -143,7 +144,7 @@
 <body class="ios-theme sub-page" style="padding-bottom: 100px;">
     <div class="background-mesh mesh-blue"></div>
 
-    <div class="sync-badge" id="sync-status">
+    <div class="sync-badge" id="sync-status" onclick="showCloudError()">
         <span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span>
         已同步 LeanCloud
     </div>
@@ -254,6 +255,19 @@
                 nav.appendChild(btn);
             }
         }, 500);
+
+        // Global Error Handler
+        window.showCloudError = () => {
+            if (lastCloudError) {
+                alert(`错误详情:\nCode: ${lastCloudError.code}\nMessage: ${lastCloudError.message}\n\n建议:\n1. 检查VPN/网络\n2. 检查 AppID/AppKey 配置`);
+            } else {
+                // If no error log yet, but red?
+                const el = document.getElementById('sync-status');
+                if (el.innerText.includes('错误')) {
+                    alert("未知错误，请检查控制台 (Console)");
+                }
+            }
+        };
 
         // ----------------------------------------------------
         // LEANCLOUD CONFIG
