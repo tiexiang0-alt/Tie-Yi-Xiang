@@ -208,7 +208,129 @@
             </div>
         </section>
 
+        <!-- 3. MARKETING MEMOS (Dynamic) -->
+        <section class="glass-sheet">
+            <h2 style="margin-bottom: 20px;">
+                <div class="section-marker" style="background:#FF3B30; color:#fff;">📝</div>
+                截流灵感备忘
+            </h2>
+            <div class="sheet-content">
+                <!-- Add New -->
+                <div style="display:flex; gap:10px; margin-bottom:20px;">
+                    <input type="text" id="mkt-memo-input" placeholder="输入营销灵感 (如: 蹭一下这周末的演唱会热度...)"
+                        style="flex:1; padding:12px; border-radius:12px; border:1px solid rgba(0,0,0,0.1); background:rgba(255,255,255,0.5);">
+                    <button onclick="addMktMemo()"
+                        style="padding:12px 20px; background:var(--system-blue); color:#fff; border:none; border-radius:12px; font-weight:600; cursor:pointer;">
+                        + 记录
+                    </button>
+                </div>
+
+                <!-- List -->
+                <div id="mkt-memo-list" style="display:grid; gap:10px;">
+                    <div style="text-align:center; color:#999; padding:20px;">加载中...</div>
+                </div>
+            </div>
+        </section>
+
     </main>
-</body>
+
+    <!-- LeanCloud SDK & Logic -->
+    <script src="//code.bdstatic.com/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
+    <script>
+        // CONFIG (Safe Init)
+        const CLOUD_CONFIG = {
+            appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
+            appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
+            serverURLs: "https://ru4pzaoo.api.lncldglobal.com"
+        };
+        // Avoid Duplicate Init
+        if (typeof AV !== 'undefined' && !AV.applicationId) {
+            AV.init(CLOUD_CONFIG);
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Wait for script.js
+            setTimeout(loadMktMemos, 500);
+        });
+
+        async function loadMktMemos() {
+            const container = document.getElementById('mkt-memo-list');
+            try {
+                const query = new AV.Query('MarketingMemo');
+                query.descending('createdAt');
+                const results = await query.find();
+
+                container.innerHTML = '';
+                if (results.length === 0) {
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无营销灵感，记一条吧~</div>';
+                    return;
+                }
+
+                results.forEach(memo => {
+                    const div = document.createElement('div');
+                    div.className = 'verbatim-box';
+                    div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; background:rgba(255,255,255,0.6);';
+                    div.innerHTML = `
+                        <span style="font-size:14px; color:#333;">${memo.get('content')}</span>
+                        <button onclick="deleteMktMemo('${memo.id}')" style="background:none; border:none; color:#ccc; font-size:12px; padding:5px; cursor:pointer;">🗑️</button>
+                    `;
+                    container.appendChild(div);
+                });
+            } catch (e) {
+                console.error(e);
+                if (e.code === 101) {
+                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无营销灵感 (Class Not Found)</div>';
+                } else if (e.code === 0 && e.message.includes("Network")) {
+                    // CORS or Network
+                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                        ⚠️ 网络不可用或被拦截 (Error 0)<br>
+                        请检查 LeanCloud 控制台 > 设置 > 安全中心 > Web 安全域名。<br>
+                        需添加: <strong>tiexiang0-alt.github.io</strong>
+                     </div>`;
+                } else {
+                    container.innerHTML = '<div style="color:red; text-align:center;">Load Error: ' + e.code + '</div>';
+                }
+            }
+        }
+
+        async function addMktMemo() {
+            const input = document.getElementById('mkt-memo-input');
+            const text = input.value.trim();
+            if (!text) return;
+
+            input.disabled = true;
+            try {
+                const Memo = AV.Object.extend('MarketingMemo');
+                const memo = new Memo();
+                memo.set('content', text);
+
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true);
+                memo.setACL(acl);
+
+                await memo.save();
+                input.value = '';
+                loadMktMemos();
+            } catch (e) {
+                alert("保存失败: " + e.message);
+            } finally {
+                input.disabled = false;
+                input.focus();
+            }
+        }
+
+        async function deleteMktMemo(id) {
+            if (!confirm("确认删除？")) return;
+            try {
+                const memo = AV.Object.createWithoutData('MarketingMemo', id);
+                await memo.destroy();
+                loadMktMemos();
+            } catch (e) {
+                alert("删除失败");
+            }
+        }
+    </script>
+    <script src="script.js"></script>
 
 </html>
