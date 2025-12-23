@@ -265,8 +265,20 @@
         };
 
         function getCloudConfig() {
+            let config = DEFAULT_TASKS; // fallback placeholder
             const saved = localStorage.getItem('tie_cloud_config');
-            if (saved) return JSON.parse(saved);
+
+            if (saved) {
+                config = JSON.parse(saved);
+                // AUTO-FIX: If serverURL doesn't match the correct one, force update
+                if (!config.serverURL || !config.serverURL.includes('ru4pzaoo')) {
+                    console.log("Detected old/wrong config, auto-fixing...");
+                    config = DEFAULT_CONFIG;
+                    localStorage.setItem('tie_cloud_config', JSON.stringify(DEFAULT_CONFIG));
+                }
+                return config;
+            }
+
             localStorage.setItem('tie_cloud_config', JSON.stringify(DEFAULT_CONFIG));
             return DEFAULT_CONFIG;
         }
