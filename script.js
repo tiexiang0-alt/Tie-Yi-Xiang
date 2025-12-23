@@ -1,15 +1,29 @@
 document.addEventListener('DOMContentLoaded', () => {
     // 1. Countdown Logic
+    // 1. Countdown Logic (Persistent)
     const timerElement = document.getElementById('countdown-timer');
-    if (timerElement) {
-        // Set fixed deadline: 20 days from "start" (assuming start is today for demo, or persisted)
-        // For consistent demo, let's set it to 20 days from now
-        const now = new Date();
-        const deadline = new Date(now.getTime() + (20 * 24 * 60 * 60 * 1000));
+    const STORAGE_KEY = 'tieyixiang_start_time';
 
+    // Get stored start time or set to now if new
+    let startTime = localStorage.getItem(STORAGE_KEY);
+    if (!startTime) {
+        startTime = new Date().getTime();
+        localStorage.setItem(STORAGE_KEY, startTime);
+    } else {
+        startTime = parseInt(startTime);
+    }
+
+    // Deadline is fixed 20 days from the FIRST time the user opened the site
+    const deadline = new Date(startTime + (20 * 24 * 60 * 60 * 1000));
+
+    // Expose for dashboard
+    window.getDiff = () => {
+        return deadline - new Date();
+    };
+
+    if (timerElement) {
         function updateTimer() {
-            const currentTime = new Date();
-            const diff = deadline - currentTime;
+            const diff = window.getDiff();
 
             if (diff <= 0) {
                 timerElement.textContent = "行动结束";
@@ -21,7 +35,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
             const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            timerElement.textContent = `${days}天 ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            // Style: Large Days, smaller time
+            timerElement.innerHTML = `<span style="font-size: 1.2em; color: var(--system-red);">${days}天</span> ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
             requestAnimationFrame(updateTimer);
         }
         updateTimer();

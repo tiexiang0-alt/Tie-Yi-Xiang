@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>铁毅祥 · 战时中控大屏</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body.dashboard-mode {
+            background: #000;
+            color: #fff;
+            overflow: hidden;
+            /* Full screen fixed */
+        }
+
+        .dashboard-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;
+            height: 100vh;
+            padding: 20px;
+        }
+
+        .dash-card {
+            background: rgba(28, 28, 30, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dash-header {
+            font-size: 14px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .big-number {
+            font-size: 60px;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+            background: linear-gradient(to bottom, #fff, #888);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .trend-up {
+            color: #34C759;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .trend-up::before {
+            content: '▲';
+            font-size: 12px;
+        }
+
+        /* Main Map/Process Visual */
+        .main-visual {
+            grid-row: 1 / 3;
+            background: radial-gradient(circle at center, rgba(50, 50, 50, 0.3) 0%, rgba(0, 0, 0, 0) 70%);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .radar-circle {
+            position: absolute;
+            border: 1px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            animation: pulse 4s infinite;
+        }
+    </style>
+</head>
+
+<body class="dashboard-mode">
+    <div class="nav-island" style="top: 20px;">
+        <div class="island-content">
+            <a href="index.html" style="color:rgba(255,255,255,0.5); text-decoration:none; margin-right:10px;">✕ 关闭</a>
+            <span class="status-dot"></span>
+            <span class="time-display" id="clock">LIVE</span>
+        </div>
+    </div>
+
+    <div class="dashboard-container">
+        <!-- Center Stage: The Battlefield -->
+        <div class="dash-card main-visual">
+            <div class="dash-header" style="position:absolute; top:20px; left:20px; width:90%;">
+                <span>实时战场态势</span>
+                <span style="color:#FF3B30;">LIVE ACTION</span>
+            </div>
+
+            <!-- Central Pulse -->
+            <div class="radar-circle" style="width: 200px; height: 200px; border-color: rgba(255, 59, 48, 0.3);"></div>
+            <div class="radar-circle" style="width: 400px; height: 400px; animation-delay: 1s;"></div>
+            <div class="radar-circle" style="width: 600px; height: 600px; animation-delay: 2s;"></div>
+
+            <div style="text-align:center; z-index:10;">
+                <h1 style="font-size:80px; font-weight:900; line-height:1; margin-bottom:10px;">20<span
+                        style="font-size:30px;">天</span></h1>
+                <div style="font-size:16px; color:rgba(255,255,255,0.6); letter-spacing:4px;">距离全面胜利</div>
+                <div id="countdown-dashboard"
+                    style="font-family: monospace; font-size: 24px; color: #FF3B30; margin-top: 20px;">00:00:00</div>
+            </div>
+        </div>
+
+        <!-- Metric 1: Traffic -->
+        <div class="dash-card">
+            <div class="dash-header">今日预估客流</div>
+            <div style="margin-top:auto;">
+                <div class="big-number">850+</div>
+                <div class="trend-up">环比 +15%</div>
+            </div>
+        </div>
+
+        <!-- Metric 2: Brand/Voice -->
+        <div class="dash-card">
+            <div class="dash-header">品牌声量 (喊堂次数)</div>
+            <div style="margin-top:auto;">
+                <div class="big-number">128</div>
+                <div style="font-size:12px; color:rgba(255,255,255,0.4);">今日累计触发次数</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Separate dashboard update loop
+        function updateDashboardTimer() {
+            const timerEl = document.getElementById('countdown-dashboard');
+            if (timerEl && window.getDiff) {
+                const diff = window.getDiff();
+                if (diff <= 0) {
+                    timerEl.textContent = "00:00:00";
+                } else {
+                    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+                    timerEl.textContent = `${days}D ${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+                }
+            }
+            requestAnimationFrame(updateDashboardTimer);
+        }
+        updateDashboardTimer();
+    </script>
+</body>
+
+</html>
