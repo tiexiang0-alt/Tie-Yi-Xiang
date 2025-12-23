@@ -164,27 +164,42 @@
     <!-- LeanCloud SDK & Logic -->
     <script src="//code.bdstatic.com/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <script>
-        // CONFIG (Safe Init)
-        const APP_ID = "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI";
-        const APP_KEY = "KJF0dXD0lmOMn1PJDb3fMUN5";
-        const SERVER_URL = "https://ru4pzaoo.api.lncldglobal.com";
-
-        if (typeof AV !== 'undefined' && !AV.applicationId) {
-            AV.init({ appId: APP_ID, appKey: APP_KEY, serverURLs: SERVER_URL });
-        }
+        // CONFIG
+        const CLOUD_CONFIG_STRAT = {
+            appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
+            appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
+            serverURLs: "https://ru4pzaoo.api.lncldglobal.com"
+        };
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Wait a sec for script.js to potentially init too
-            setTimeout(loadMemos, 500);
+            // 1. Polling for AV init (Wait max 5s)
+            let attempts = 0;
+            const initInterval = setInterval(() => {
+                attempts++;
+                if (typeof AV !== 'undefined') {
+                    // Init if not yet
+                    if (!AV.applicationId) AV.init(CLOUD_CONFIG_STRAT);
+                    clearInterval(initInterval);
+                    loadMemosWithRetry(3); // Start Loading with 3 Retries
+                } else if (attempts > 50) { // 5s timeout
+                    clearInterval(initInterval);
+                    document.getElementById('memo-list').innerHTML = '<div style="color:red; text-align:center;">SDK Load Timeout</div>';
+                }
+            }, 100);
         });
 
-        async function loadMemos() {
+        async function loadMemosWithRetry(retries) {
             const container = document.getElementById('memo-list');
-            container.innerHTML = 'Scan...';
+            if (retries === 3) container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">正在连接云端...</div>';
+
             try {
                 const query = new AV.Query('StrategyMemo');
                 query.descending('createdAt');
-                const results = await query.find();
+                // Timeout for query itself (5s)
+                const results = await Promise.race([
+                    query.find(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Query Timeout')), 5000))
+                ]);
 
                 container.innerHTML = '';
                 if (results.length === 0) {
@@ -203,19 +218,27 @@
                     container.appendChild(div);
                 });
             } catch (e) {
-                console.error(e);
-                if (e.code === 101) {
-                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘 (Class Not Found)</div>';
-                } else if (e.code === 0 && e.message.includes("Network")) {
-                    // CORS or Network
-                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
-                        ⚠️ 网络不可用或被拦截 (Error 0)<br>
-                        请检查 LeanCloud 控制台 > 设置 > 安全中心 > Web 安全域名。<br>
-                        需添加: <strong>tiexiang0-alt.github.io</strong>
-                     </div>`;
+                console.warn(`Load Attempt Failed (Left: ${retries})`, e);
+                if (retries > 0) {
+                    container.innerHTML = `<div style="text-align:center; color:#ff9500; padding:20px; font-size:12px;">连接不稳定，正在重试 (${3 - retries + 1}/3)...</div>`;
+                    setTimeout(() => loadMemosWithRetry(retries - 1), 1500); // Wait 1.5s then retry
                 } else {
-                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px;">Error ${e.code}: ${e.message}</div>`;
+                    // Final Error Handler
+                    renderError(e, container);
                 }
+            }
+        }
+
+        function renderError(e, container) {
+            if (e.code === 101) {
+                container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无备忘 (Class Not Found)</div>';
+            } else if ((e.code === 0 && e.message.includes("Network")) || e.message === 'Query Timeout') {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                    ⚠️ 网络不稳定<br>
+                    请检查是否有VPN影响，或刷新重试。
+                 </div>`;
+            } else {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px;">Error ${e.code || 'X'}: ${e.message}</div>`;
             }
         }
 
@@ -237,9 +260,9 @@
 
                 await memo.save();
                 input.value = '';
-                loadMemos();
+                loadMemosWithRetry(3);
             } catch (e) {
-                alert("保存失败: " + e.message);
+                alert("保存失败，请重试: " + e.message);
             } finally {
                 input.disabled = false;
                 input.focus();
@@ -247,13 +270,13 @@
         }
 
         async function deleteMemo(id) {
-            if (!confirm("确认删除这条备忘？")) return;
+            if (!confirm("确认删除？")) return;
             try {
                 const memo = AV.Object.createWithoutData('StrategyMemo', id);
                 await memo.destroy();
-                loadMemos();
+                loadMemosWithRetry(3);
             } catch (e) {
-                alert("删除失败");
+                alert("删除失败，请刷新");
             }
         }
     </script>

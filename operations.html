@@ -331,28 +331,40 @@
     <!-- LeanCloud SDK & Logic -->
     <script src="//code.bdstatic.com/npm/leancloud-storage@4.12.0/dist/av-min.js"></script>
     <script>
-        // CONFIG (Safe Init)
-        const CLOUD_CONFIG = {
+        // CONFIG
+        const CLOUD_CONFIG_OPS = {
             appId: "Ru4pzaooijH8G6ICWOJEirUj-MdYXbMMI",
             appKey: "KJF0dXD0lmOMn1PJDb3fMUN5",
             serverURLs: "https://ru4pzaoo.api.lncldglobal.com"
         };
-        // Avoid Duplicate Init
-        if (typeof AV !== 'undefined' && !AV.applicationId) {
-            AV.init(CLOUD_CONFIG);
-        }
 
         document.addEventListener('DOMContentLoaded', () => {
-            // Wait for script.js
-            setTimeout(loadOpMemos, 500);
+            // 1. Polling for AV init (Wait max 5s)
+            let attempts = 0;
+            const initInterval = setInterval(() => {
+                attempts++;
+                if (typeof AV !== 'undefined') {
+                    if (!AV.applicationId) AV.init(CLOUD_CONFIG_OPS);
+                    clearInterval(initInterval);
+                    loadOpMemosWithRetry(3);
+                } else if (attempts > 50) {
+                    clearInterval(initInterval);
+                    document.getElementById('op-memo-list').innerHTML = '<div style="color:red; text-align:center;">SDK Load Timeout</div>';
+                }
+            }, 100);
         });
 
-        async function loadOpMemos() {
+        async function loadOpMemosWithRetry(retries) {
             const container = document.getElementById('op-memo-list');
+            if (retries === 3) container.innerHTML = '<div style="text-align:center; color:#999; padding:20px;">正在连接云端...</div>';
+
             try {
                 const query = new AV.Query('OperationsMemo');
                 query.descending('createdAt');
-                const results = await query.find();
+                const results = await Promise.race([
+                    query.find(),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('Query Timeout')), 5000))
+                ]);
 
                 container.innerHTML = '';
                 if (results.length === 0) {
@@ -371,19 +383,26 @@
                     container.appendChild(div);
                 });
             } catch (e) {
-                console.error(e);
-                if (e.code === 101) {
-                    container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘 (Class Not Found)</div>';
-                } else if (e.code === 0 && e.message.includes("Network")) {
-                    // CORS or Network
-                    container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
-                        ⚠️ 网络不可用或被拦截 (Error 0)<br>
-                        请检查 LeanCloud 控制台 > 设置 > 安全中心 > Web 安全域名。<br>
-                        需添加: <strong>tiexiang0-alt.github.io</strong>
-                     </div>`;
+                console.warn(`Load Attempt Failed (Left: ${retries})`, e);
+                if (retries > 0) {
+                    container.innerHTML = `<div style="text-align:center; color:#ff9500; padding:20px; font-size:12px;">连接不稳定，正在重试 (${3 - retries + 1}/3)...</div>`;
+                    setTimeout(() => loadOpMemosWithRetry(retries - 1), 1500);
                 } else {
-                    container.innerHTML = '<div style="color:red; text-align:center;">Load Error: ' + e.code + '</div>';
+                    renderErrorOps(e, container);
                 }
+            }
+        }
+
+        function renderErrorOps(e, container) {
+            if (e.code === 101) {
+                container.innerHTML = '<div style="text-align:center; opacity:0.5; padding:20px; font-size:13px;">暂无执行备忘 (Class Not Found)</div>';
+            } else if ((e.code === 0 && e.message.includes("Network")) || e.message === 'Query Timeout') {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px; padding:10px; background:rgba(255,0,0,0.1); border-radius:8px;">
+                    ⚠️ 网络不稳定<br>
+                    请检查是否有VPN影响，或刷新重试。
+                 </div>`;
+            } else {
+                container.innerHTML = `<div style="color:red; text-align:center; font-size:12px;">Error ${e.code || 'X'}: ${e.message}</div>`;
             }
         }
 
@@ -405,7 +424,7 @@
 
                 await memo.save();
                 input.value = '';
-                loadOpMemos();
+                loadOpMemosWithRetry(3);
             } catch (e) {
                 alert("保存失败: " + e.message);
             } finally {
@@ -419,7 +438,7 @@
             try {
                 const memo = AV.Object.createWithoutData('OperationsMemo', id);
                 await memo.destroy();
-                loadOpMemos();
+                loadOpMemosWithRetry(3);
             } catch (e) {
                 alert("删除失败");
             }
