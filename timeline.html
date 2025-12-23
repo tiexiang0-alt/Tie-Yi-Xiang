@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>决战清单 | 铁毅祥</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body class="ios-theme sub-page">
+    <div class="background-mesh mesh-gold"></div>
+
+    <nav class="top-nav">
+        <a href="index.html" class="back-btn">← 返回</a>
+        <span class="page-title">决战清单</span>
+    </nav>
+
+    <main class="content-scroll">
+        <!-- Todo List App Module -->
+        <section class="glass-card content-block todo-wrapper">
+            <div class="todo-header">
+                <h2>待办事项</h2>
+                <span class="date-today" id="today-date">2025-12-24</span>
+            </div>
+
+            <div class="add-task-bar">
+                <input type="text" id="new-task-input" placeholder="添加新的战斗任务...">
+                <button id="add-task-btn">+</button>
+            </div>
+
+            <div class="todo-list" id="todo-list">
+                <!-- Javascript will populate this -->
+            </div>
+        </section>
+
+        <!-- 20 Day Timeline -->
+        <section class="glass-card content-block">
+            <div class="badge-header">行动时间轴</div>
+            <h2>20天生死时速</h2>
+
+            <div class="timeline-v2">
+                <div class="t-phase">
+                    <div class="t-time">Day 1-3</div>
+                    <div class="t-content">
+                        <strong>基础建设期</strong>
+                        <p>采购新碗（区分羊/牛）、认证官方账号、全员动员培训。</p>
+                    </div>
+                </div>
+                <div class="t-phase">
+                    <div class="t-time">Day 4-10</div>
+                    <div class="t-content">
+                        <strong>内容铺设期</strong>
+                        <p>10位达人进店拍摄，小红书笔记开始发布。</p>
+                    </div>
+                </div>
+                <div class="t-phase">
+                    <div class="t-time">Day 11-15</div>
+                    <div class="t-content">
+                        <strong>流量助推期</strong>
+                        <p>筛选优质视频投DOU+，评论区控评引导。</p>
+                    </div>
+                </div>
+                <div class="t-phase">
+                    <div class="t-time">Day 16-20</div>
+                    <div class="t-content">
+                        <strong>全面爆发期</strong>
+                        <p>搜索霸屏，各种榜单可见，门店排队常态化。</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="glass-card content-block reform-alert">
+            <h2>🚨 改革警告</h2>
+            <p><strong>收权行动：</strong>不再依赖传话。未来20天您必须亲自下场，亲力亲为。</p>
+        </section>
+    </main>
+
+    <script src="script.js"></script>
+    <script>
+        // Inline script for specific page logic logic to keep it simple
+        document.addEventListener('DOMContentLoaded', () => {
+            initTodo();
+            document.getElementById('today-date').innerText = new Date().toLocaleDateString('zh-CN');
+        });
+    </script>
+</body>
+
+</html>
