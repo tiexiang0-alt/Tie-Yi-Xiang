@@ -99,12 +99,13 @@ function initTodo() {
 
     render();
 }
-// 4. Accordion Logic (Operations Page)
-const accordionHeaders = document.querySelectorAll('.glass-sheet h2');
-accordionHeaders.forEach(header => {
-    header.addEventListener('click', () => {
-        const sheet = header.parentElement;
-        sheet.classList.toggle('collapsed');
+// 4. Accordion Logic (Operations Page & Manual Page)
+document.addEventListener('DOMContentLoaded', () => {
+    const accordionHeaders = document.querySelectorAll('.glass-sheet h2');
+    accordionHeaders.forEach(header => {
+        header.addEventListener('click', () => {
+            const sheet = header.parentElement;
+            sheet.classList.toggle('collapsed');
+        });
     });
 });
-}
