@@ -465,26 +465,17 @@
                     statusEl.innerHTML = '<span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span> 已同步';
                     setTimeout(() => statusEl.classList.remove('sync-active'), 3000);
                 } else {
-                    console.log("Initialize New DB...");
-                    const ClassInfo = AV.Object.extend('TieYixiangChecklistPublic');
-                    dbObject = new ClassInfo();
-                    dbObject.set('syncId', SYNC_ID);
-
-                    // Initial Seed
-                    taskList = [...DEFAULT_TASKS];
-                    dbObject.set('taskList', taskList);
-
-                    // ACL
-                    const acl = new AV.ACL();
-                    acl.setPublicReadAccess(true);
-                    acl.setPublicWriteAccess(true);
-                    dbObject.setACL(acl);
-
-                    await dbObject.save();
-                    render();
-                    statusEl.innerHTML = '<span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span> 初始化完成';
+                    console.log("Empty results, initializing...");
+                    await initNewData(statusEl);
                 }
             } catch (error) {
+                // Error 101: Class Missing (Fresh DB)
+                if (error.code === 101) {
+                    console.log("Class missing (101), initializing...");
+                    await initNewData(statusEl);
+                    return;
+                }
+
                 console.error("Cloud Error", error);
                 lastCloudError = error;
                 statusEl.style.background = "rgba(255, 59, 48, 0.9)";
@@ -525,6 +516,32 @@
                     statusEl.style.background = "rgba(255, 59, 48, 0.9)";
                     statusEl.innerText = "❌ 保存失败";
                 }
+            }
+        }
+
+        async function initNewData(statusEl) {
+            try {
+                console.log("Initialize New DB...");
+                const ClassInfo = AV.Object.extend('TieYixiangChecklistPublic');
+                dbObject = new ClassInfo();
+                dbObject.set('syncId', SYNC_ID);
+
+                // Initial Seed
+                taskList = [...DEFAULT_TASKS];
+                dbObject.set('taskList', taskList);
+
+                // ACL
+                const acl = new AV.ACL();
+                acl.setPublicReadAccess(true);
+                acl.setPublicWriteAccess(true);
+                dbObject.setACL(acl);
+
+                await dbObject.save();
+                render();
+                if (statusEl) statusEl.innerHTML = '<span style="width:6px; height:6px; background:#34C759; border-radius:50%;"></span> 初始化完成';
+            } catch (e) {
+                console.error("Init Failed", e);
+                if (statusEl) statusEl.innerText = "❌ 初始化失败: " + e.message;
             }
         }
 
