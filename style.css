@@ -629,3 +629,39 @@ body::after {
     color: var(--system-green);
     font-weight: 700;
 }
+
+/* --- ACCORDION STYLES --- */
+.glass-sheet h2 {
+    cursor: pointer;
+    width: 100%;
+    padding-right: 10px;
+    display: flex;
+    align-items: center;
+}
+
+.glass-sheet h2::after {
+    content: '▼';
+    font-size: 14px;
+    margin-left: auto;
+    transition: transform 0.3s ease;
+    opacity: 0.4;
+    display: inline-block;
+}
+
+.glass-sheet.collapsed h2::after {
+    transform: rotate(-90deg);
+}
+
+.sheet-content {
+    overflow: hidden;
+    transition: max-height 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.4s ease, margin 0.3s ease;
+    max-height: 3000px;
+    /* Sufficient for long content */
+    opacity: 1;
+}
+
+.glass-sheet.collapsed .sheet-content {
+    max-height: 0;
+    opacity: 0;
+    margin-top: 0;
+}
